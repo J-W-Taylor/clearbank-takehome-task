@@ -2,8 +2,15 @@
 
 namespace ClearBank.DeveloperTest.Data
 {
-    public class AccountDataStore
+    public class AccountDataStore : IAccountDataStore
     {
+        private readonly string _connectionString;
+
+        public AccountDataStore(string connectionString)
+        {
+            _connectionString = connectionString;
+        }
+
         public Account GetAccount(string accountNumber)
         {
             // Access database to retrieve account, code removed for brevity 

@@ -1,26 +1,30 @@
 ﻿using ClearBank.DeveloperTest.Data;
 using ClearBank.DeveloperTest.Types;
-using System.Configuration;
 
 namespace ClearBank.DeveloperTest.Services
 {
     public class PaymentService : IPaymentService
     {
+        private readonly IAccountDataStore _primary;
+        private readonly IAccountDataStore _backup;
+
+        public PaymentService(DataStoreProvider provider)
+        {
+            _primary = provider.Primary;
+            _backup = provider.Backup;
+        }
+
         public MakePaymentResult MakePayment(MakePaymentRequest request)
         {
-            var dataStoreType = ConfigurationManager.AppSettings["DataStoreType"];
+            Account account;
 
-            Account account = null;
-
-            if (dataStoreType == "Backup")
+            try
             {
-                var accountDataStore = new BackupAccountDataStore();
-                account = accountDataStore.GetAccount(request.DebtorAccountNumber);
+                account = _primary.GetAccount(request.DebtorAccountNumber);
             }
-            else
+            catch
             {
-                var accountDataStore = new AccountDataStore();
-                account = accountDataStore.GetAccount(request.DebtorAccountNumber);
+                account = _backup.GetAccount(request.DebtorAccountNumber);
             }
 
             var result = new MakePaymentResult();
@@ -75,15 +79,13 @@ namespace ClearBank.DeveloperTest.Services
             {
                 account.Balance -= request.Amount;
 
-                if (dataStoreType == "Backup")
+                try
                 {
-                    var accountDataStore = new BackupAccountDataStore();
-                    accountDataStore.UpdateAccount(account);
+                    _primary.UpdateAccount(account);
                 }
-                else
+                catch
                 {
-                    var accountDataStore = new AccountDataStore();
-                    accountDataStore.UpdateAccount(account);
+                    _backup.UpdateAccount(account);
                 }
             }
 
