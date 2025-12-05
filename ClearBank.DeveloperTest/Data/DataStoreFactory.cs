@@ -2,12 +2,12 @@
 
 namespace ClearBank.DeveloperTest.Data
 {
-    public class DataStoreProvider
+    public class DataStoreFactory
     {
         public IAccountDataStore Primary { get; }
         public IAccountDataStore Backup { get; }
 
-        public DataStoreProvider()
+        public DataStoreFactory()
         {
             Primary = new AccountDataStore(
                 ConfigurationManager.ConnectionStrings["MainDb"].ConnectionString);

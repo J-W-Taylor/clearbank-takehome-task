@@ -1,5 +1,8 @@
 ﻿using ClearBank.DeveloperTest.Data;
+using ClearBank.DeveloperTest.Services.PaymentRules;
 using ClearBank.DeveloperTest.Types;
+using System;
+using System.Collections.Generic;
 
 namespace ClearBank.DeveloperTest.Services
 {
@@ -8,10 +11,17 @@ namespace ClearBank.DeveloperTest.Services
         private readonly IAccountDataStore _primary;
         private readonly IAccountDataStore _backup;
 
-        public PaymentService(DataStoreProvider provider)
+        private readonly Dictionary<PaymentScheme, IPaymentRule> _paymentRules = new();
+
+        public PaymentService(DataStoreFactory provider, IEnumerable<IPaymentRule> paymentRules)
         {
             _primary = provider.Primary;
             _backup = provider.Backup;
+
+            foreach (var paymentRule in paymentRules)
+            {
+                _paymentRules.Add(paymentRule.PaymentScheme, paymentRule);
+            }
         }
 
         public MakePaymentResult MakePayment(MakePaymentRequest request)
@@ -29,51 +39,12 @@ namespace ClearBank.DeveloperTest.Services
 
             var result = new MakePaymentResult();
 
-            result.Success = true;
-            
-            switch (request.PaymentScheme)
+            if(!_paymentRules.TryGetValue(request.PaymentScheme, out var paymentRule))
             {
-                case PaymentScheme.Bacs:
-                    if (account == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!account.AllowedPaymentSchemes.HasFlag(AllowedPaymentSchemes.Bacs))
-                    {
-                        result.Success = false;
-                    }
-                    break;
-
-                case PaymentScheme.FasterPayments:
-                    if (account == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!account.AllowedPaymentSchemes.HasFlag(AllowedPaymentSchemes.FasterPayments))
-                    {
-                        result.Success = false;
-                    }
-                    else if (account.Balance < request.Amount)
-                    {
-                        result.Success = false;
-                    }
-                    break;
-
-                case PaymentScheme.Chaps:
-                    if (account == null)
-                    {
-                        result.Success = false;
-                    }
-                    else if (!account.AllowedPaymentSchemes.HasFlag(AllowedPaymentSchemes.Chaps))
-                    {
-                        result.Success = false;
-                    }
-                    else if (account.Status != AccountStatus.Live)
-                    {
-                        result.Success = false;
-                    }
-                    break;
+                throw new ArgumentException($"Invalid Payment Scheme provided: {request.PaymentScheme}");
             }
+
+            result.Success = paymentRule.IsValid(account, request);
 
             if (result.Success)
             {
