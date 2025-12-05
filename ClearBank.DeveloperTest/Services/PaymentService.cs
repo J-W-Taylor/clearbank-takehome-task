@@ -1,7 +1,6 @@
 ﻿using ClearBank.DeveloperTest.Data;
 using ClearBank.DeveloperTest.Services.PaymentRules;
 using ClearBank.DeveloperTest.Types;
-using System;
 using System.Collections.Generic;
 
 namespace ClearBank.DeveloperTest.Services
@@ -30,18 +29,25 @@ namespace ClearBank.DeveloperTest.Services
 
             try
             {
+                // Can be set up to return 'null' if no account can be found
                 account = _primary.GetAccount(request.DebtorAccountNumber);
             }
             catch
             {
+                // Can be set up to return 'null' if no account can be found
                 account = _backup.GetAccount(request.DebtorAccountNumber);
+            }
+
+            if (account == null)
+            {
+                return new MakePaymentResult { Success = false, FailureMessage = "No matching account was found for the provided Debtor Account Number" };
             }
 
             var result = new MakePaymentResult();
 
             if(!_paymentRules.TryGetValue(request.PaymentScheme, out var paymentRule))
             {
-                throw new ArgumentException($"Invalid Payment Scheme provided: {request.PaymentScheme}");
+                return new MakePaymentResult { Success = false, FailureMessage = $"Invalid Payment Scheme provided: {request.PaymentScheme}" };
             }
 
             result.Success = paymentRule.IsValid(account, request);
@@ -58,6 +64,10 @@ namespace ClearBank.DeveloperTest.Services
                 {
                     _backup.UpdateAccount(account);
                 }
+            }
+            else
+            {
+                result.FailureMessage = $"Payment failed validation";
             }
 
             return result;
