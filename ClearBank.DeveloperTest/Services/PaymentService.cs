@@ -12,7 +12,7 @@ namespace ClearBank.DeveloperTest.Services
 
         private readonly Dictionary<PaymentScheme, IPaymentRule> _paymentRules = new();
 
-        public PaymentService(DataStoreFactory provider, IEnumerable<IPaymentRule> paymentRules)
+        public PaymentService(IDataStoreFactory provider, IEnumerable<IPaymentRule> paymentRules)
         {
             _primary = provider.Primary;
             _backup = provider.Backup;

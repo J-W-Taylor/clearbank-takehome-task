@@ -2,7 +2,7 @@
 
 namespace ClearBank.DeveloperTest.Data
 {
-    public class DataStoreFactory
+    public class DataStoreFactory : IDataStoreFactory
     {
         public IAccountDataStore Primary { get; }
         public IAccountDataStore Backup { get; }
