@@ -25,22 +25,17 @@ namespace ClearBank.DeveloperTest.Services
 
         public MakePaymentResult MakePayment(MakePaymentRequest request)
         {
-            Account account;
+            var debtorAccount = GetAccount(request.DebtorAccountNumber);
+            var creditorAccount = GetAccount(request.CreditorAccountNumber);
 
-            try
-            {
-                // Can be set up to return 'null' if no account can be found
-                account = _primary.GetAccount(request.DebtorAccountNumber);
-            }
-            catch
-            {
-                // Can be set up to return 'null' if no account can be found
-                account = _backup.GetAccount(request.DebtorAccountNumber);
-            }
-
-            if (account == null)
+            if (debtorAccount == null)
             {
                 return new MakePaymentResult { Success = false, FailureMessage = "No matching account was found for the provided Debtor Account Number" };
+            }
+
+            if (creditorAccount == null)
+            {
+                return new MakePaymentResult { Success = false, FailureMessage = "No matching account was found for the provided Creditor Account Number" };
             }
 
             var result = new MakePaymentResult();
@@ -50,20 +45,15 @@ namespace ClearBank.DeveloperTest.Services
                 return new MakePaymentResult { Success = false, FailureMessage = $"Invalid Payment Scheme provided: {request.PaymentScheme}" };
             }
 
-            result.Success = paymentRule.IsValid(account, request);
+            result.Success = paymentRule.IsValid(debtorAccount, request);
 
             if (result.Success)
             {
-                account.Balance -= request.Amount;
+                debtorAccount.Balance -= request.Amount;
+                creditorAccount.Balance += request.Amount;
 
-                try
-                {
-                    _primary.UpdateAccount(account);
-                }
-                catch
-                {
-                    _backup.UpdateAccount(account);
-                }
+                UpdateAccount(debtorAccount);
+                UpdateAccount(creditorAccount);
             }
             else
             {
@@ -71,6 +61,32 @@ namespace ClearBank.DeveloperTest.Services
             }
 
             return result;
+        }
+
+        private Account GetAccount(string accountNumber)
+        {
+            try
+            {
+                // Can be set up to return 'null' if no account can be found
+                return _primary.GetAccount(accountNumber);
+            }
+            catch
+            {
+                // Can be set up to return 'null' if no account can be found
+                return _backup.GetAccount(accountNumber);
+            }
+        }
+
+        private void UpdateAccount(Account account)
+        {
+            try
+            {
+                _primary.UpdateAccount(account);
+            }
+            catch
+            {
+                _backup.UpdateAccount(account);
+            }
         }
     }
 }

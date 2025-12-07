@@ -29,17 +29,19 @@ namespace ClearBank.DeveloperTest.Services.Tests
             var request = new MakePaymentRequest
             {
                 DebtorAccountNumber = "123",
+                CreditorAccountNumber = "321",
                 Amount = 100,
                 PaymentScheme = PaymentScheme.Bacs
             };
 
             var account = new Account
             {
+                AccountNumber = "123",
                 Balance = 500,
                 AllowedPaymentSchemes = AllowedPaymentSchemes.Bacs
             };
 
-            _primary.Setup(accountDataStore => accountDataStore.GetAccount("123")).Returns(account);
+            _primary.Setup(accountDataStore => accountDataStore.GetAccount(account.AccountNumber)).Returns(account);
 
             _rules.Add(new BacsPaymentRule());
 
@@ -49,7 +51,7 @@ namespace ClearBank.DeveloperTest.Services.Tests
             var result = sut.MakePayment(request);
 
             // Assert
-            _primary.Verify(accountDataStore => accountDataStore.GetAccount("123"), Times.Once);
+            _primary.Verify(accountDataStore => accountDataStore.GetAccount(account.AccountNumber), Times.Once);
             _backup.Verify(accountDataStore => accountDataStore.GetAccount(It.IsAny<string>()), Times.Never);
         }
 
@@ -60,21 +62,23 @@ namespace ClearBank.DeveloperTest.Services.Tests
             var request = new MakePaymentRequest
             {
                 DebtorAccountNumber = "123",
+                CreditorAccountNumber = "321",
                 Amount = 100,
                 PaymentScheme = PaymentScheme.Bacs
             };
 
             var account = new Account
             {
+                AccountNumber = "123",
                 Balance = 500,
                 AllowedPaymentSchemes = AllowedPaymentSchemes.Bacs
             };
 
             _primary
-                .Setup(accountDataStore => accountDataStore.GetAccount("123"))
+                .Setup(accountDataStore => accountDataStore.GetAccount(account.AccountNumber))
                 .Throws(new Exception("Unable to connect to the primary database"));
 
-            _backup.Setup(accountDataStore => accountDataStore.GetAccount("123")).Returns(account);
+            _backup.Setup(accountDataStore => accountDataStore.GetAccount(account.AccountNumber)).Returns(account);
 
             _rules.Add(new BacsPaymentRule());
 
@@ -84,8 +88,8 @@ namespace ClearBank.DeveloperTest.Services.Tests
             sut.MakePayment(request);
 
             // Assert
-            _primary.Verify(accountDataStore => accountDataStore.GetAccount("123"), Times.Once);
-            _backup.Verify(accountDataStore => accountDataStore.GetAccount("123"), Times.Once);
+            _primary.Verify(accountDataStore => accountDataStore.GetAccount(account.AccountNumber), Times.Once);
+            _backup.Verify(accountDataStore => accountDataStore.GetAccount(account.AccountNumber), Times.Once);
         }
 
         [Fact]
@@ -95,12 +99,14 @@ namespace ClearBank.DeveloperTest.Services.Tests
             var request = new MakePaymentRequest
             {
                 DebtorAccountNumber = "123",
+                CreditorAccountNumber = "321",
                 Amount = 100,
                 PaymentScheme = PaymentScheme.Bacs
             };
 
             var account = new Account
             {
+                AccountNumber = "123",
                 Balance = 500,
                 AllowedPaymentSchemes = AllowedPaymentSchemes.Bacs
             };
@@ -139,17 +145,27 @@ namespace ClearBank.DeveloperTest.Services.Tests
             var request = new MakePaymentRequest
             {
                 DebtorAccountNumber = "123",
+                CreditorAccountNumber = "321",
                 Amount = 100,
                 PaymentScheme = PaymentScheme.Chaps
             };
 
-            var account = new Account
+            var debtorAccount = new Account
             {
+                AccountNumber = "123",
                 Balance = 500,
-                AllowedPaymentSchemes = AllowedPaymentSchemes.Chaps
+                AllowedPaymentSchemes = AllowedPaymentSchemes.Bacs
             };
 
-            _primary.Setup(accountDataStore => accountDataStore.GetAccount("123")).Returns(account);
+            var creditorAccount = new Account
+            {
+                AccountNumber = "321",
+                Balance = 250,
+                AllowedPaymentSchemes = AllowedPaymentSchemes.Bacs
+            };
+
+            _primary.Setup(accountDataStore => accountDataStore.GetAccount(debtorAccount.AccountNumber)).Returns(debtorAccount);
+            _primary.Setup(accountDataStore => accountDataStore.GetAccount(creditorAccount.AccountNumber)).Returns(creditorAccount);
 
             // Only add rule for Bacs, not Chaps
             _rules.Add(new BacsPaymentRule());
@@ -177,18 +193,28 @@ namespace ClearBank.DeveloperTest.Services.Tests
             var request = new MakePaymentRequest
             {
                 DebtorAccountNumber = "123",
+                CreditorAccountNumber = "321",
                 Amount = 100,
                 PaymentScheme = PaymentScheme.Bacs
             };
 
-            // No not allow Bacs payments
-            var account = new Account
+            // Do not allow Bacs payments
+            var debtorAccount = new Account
             {
+                AccountNumber = "123",
                 Balance = 500,
                 AllowedPaymentSchemes = AllowedPaymentSchemes.Chaps
             };
 
-            _primary.Setup(accountDataStore => accountDataStore.GetAccount("123")).Returns(account);
+            var creditorAccount = new Account
+            {
+                AccountNumber = "321",
+                Balance = 250,
+                AllowedPaymentSchemes = AllowedPaymentSchemes.Chaps
+            };
+
+            _primary.Setup(accountDataStore => accountDataStore.GetAccount(debtorAccount.AccountNumber)).Returns(debtorAccount);
+            _primary.Setup(accountDataStore => accountDataStore.GetAccount(creditorAccount.AccountNumber)).Returns(creditorAccount);
 
             _rules.Add(new BacsPaymentRule());
 
@@ -212,23 +238,34 @@ namespace ClearBank.DeveloperTest.Services.Tests
         public void MakePayment_WhenPaymentValidationPasses_ShouldUpdateAccountAndReturnSuccess()
         {
             // Arrange
-            var startingBalance = 500;
+            var debtorStartingBalance = 500;
+            var creditorStartingBalance = 250;
             var amountToTransfer = 100;
 
             var request = new MakePaymentRequest
             {
                 DebtorAccountNumber = "123",
+                CreditorAccountNumber = "321",
                 Amount = amountToTransfer,
                 PaymentScheme = PaymentScheme.Bacs
             };
 
-            var account = new Account
+            var debtorAccount = new Account
             {
-                Balance = startingBalance,
+                AccountNumber = "123",
+                Balance = debtorStartingBalance,
                 AllowedPaymentSchemes = AllowedPaymentSchemes.Bacs
             };
 
-            _primary.Setup(accountDataStore => accountDataStore.GetAccount("123")).Returns(account);
+            var creditorAccount = new Account
+            {
+                AccountNumber = "321",
+                Balance = creditorStartingBalance,
+                AllowedPaymentSchemes = AllowedPaymentSchemes.Bacs
+            };
+
+            _primary.Setup(accountDataStore => accountDataStore.GetAccount(debtorAccount.AccountNumber)).Returns(debtorAccount);
+            _primary.Setup(accountDataStore => accountDataStore.GetAccount(creditorAccount.AccountNumber)).Returns(creditorAccount);
 
             _rules.Add(new BacsPaymentRule());
 
@@ -244,9 +281,11 @@ namespace ClearBank.DeveloperTest.Services.Tests
 
             // Assert
             result.Success.Should().Be(expectedResult.Success);
-            account.Balance.Should().Be(startingBalance - amountToTransfer);
+            debtorAccount.Balance.Should().Be(debtorStartingBalance - amountToTransfer);
+            creditorAccount.Balance.Should().Be(creditorStartingBalance + amountToTransfer);
 
-            _primary.Verify(x => x.UpdateAccount(account), Times.Once);
+            _primary.Verify(x => x.UpdateAccount(debtorAccount), Times.Once);
+            _primary.Verify(x => x.UpdateAccount(creditorAccount), Times.Once);
             _backup.Verify(x => x.UpdateAccount(It.IsAny<Account>()), Times.Never);
         }
 
